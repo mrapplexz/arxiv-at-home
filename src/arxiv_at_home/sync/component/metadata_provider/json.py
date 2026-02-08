@@ -70,7 +70,11 @@ class KaggleDumpPaperMetadataProvider(PaperMetadataProvider):
 
                 row = KaggleDatasetRow.model_validate_json(line_bytes)
 
-                if since is None or row.update_date >= since:
+                updated_at_comparator = datetime.datetime.combine(row.update_date, datetime.time.min).astimezone(
+                    tz=datetime.UTC
+                )
+
+                if since is None or updated_at_comparator >= since:
                     yield MetadataFetchProgress(metadata=self._map_to_dto(row), progress=current_bytes)
                 else:
                     yield MetadataFetchProgress(metadata=None, progress=current_bytes)
