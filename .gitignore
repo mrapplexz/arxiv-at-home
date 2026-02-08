@@ -5,13 +5,20 @@ build/
 dist/
 wheels/
 *.egg-info
+.ruff_cache/
+.coverage
+htmlcov/
 
 # Virtual environments
 .venv
+.env
 
-# ij
+# IDEs
 .idea/
+.vscode/
+
+# Data
 /data/
 
-# dotenv
-.env
+# Logs
+*.log
