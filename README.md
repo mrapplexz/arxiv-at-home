@@ -3,9 +3,11 @@
 A self-hosted semantic search engine for Arxiv papers.
 
 ## Features
- 
-* **Hybrid Search**: Combines semantic retrieval, keyword search with both neural and citation re-ranking for high precision.
-* **Self-Hosted**: Run everything locally on your own infrastructure (except for optional **Citation Reranking** feature).
+
+* **Hybrid Search**: Combines semantic retrieval, keyword search with both neural and citation re-ranking for high
+  precision.
+* **Self-Hosted**: Run everything locally on your own infrastructure (except for optional **Citation Reranking**
+  feature).
 
 ## Prerequisites
 
@@ -37,7 +39,7 @@ A self-hosted semantic search engine for Arxiv papers.
    ```bash
    cp .env.example .env
    ```
-   
+
    Edit `.env` if you need to customize database credentials or ports.
 
 4. **Install Dependencies**
@@ -61,7 +63,8 @@ uv run python -m arxiv_at_home.migrate
 
 ### 2. Sync Metadata
 
-Import paper metadata into the database. You'll need the Arxiv metadata dataset (e.g., `arxiv-metadata-oai-snapshot.json` from [Kaggle](https://www.kaggle.com/datasets/Cornell-University/arxiv)).
+Import paper metadata into the database. You'll need the Arxiv metadata dataset (e.g.,
+`arxiv-metadata-oai-snapshot.json` from [Kaggle](https://www.kaggle.com/datasets/Cornell-University/arxiv)).
 
 You can re-run this package to do an incremental update - it will work out of the box.
 
@@ -95,8 +98,34 @@ Configure the API settings in `example/api.json`.
 uv run python -m arxiv_at_home.api --config-path example/api.json
 ```
 
-The API will be available at `http://localhost:1337` (or whatever port you configured). You can access the interactive API documentation at `http://localhost:1337/docs`.
+The API will be available at `http://localhost:1337` (or whatever port you configured). You can access the interactive
+API documentation at `http://localhost:1337/docs`.
 
+## Limitations and Future Work
+
+### Data Ingestion Pipelines
+
+Currently, we implement the only synchronization provider that relies on periodic snapshots from Kaggle datasets.
+While effective for prototyping, this introduces a synchronization latency.
+Our project architecture supports different paper metadata providers. Future iterations may implement an ingestion
+pipeline based on the Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH), facilitating direct and
+immediate synchronization with arXiv servers.
+
+### Citation Topology
+
+A significant constraint in the current system is the reliance on the Semantic Scholar API for citation metrics. This
+design choice was necessitated by the financial constraints of accessing arXiv's "requester-pays" S3 buckets for bulk
+source file retrieval. In future work, one may implement a full-dump synchronization strategy that ingests raw TeX
+sources.
+This will enable the construction of a proprietary citation graph, allowing for more accurate and cost-effective
+citation topology estimation.
+
+### Domain-Specific Embeddings
+
+We currently employ Qwen3-Embedding-0.6B for vector representation and Qwen3-Reranker-0.6B for neural reranking. While
+effective, these models lack the granular understanding required for niche scientific domains. To address this, we plan
+to train custom embedding and reranking models. By utilizing synthetic data generation to simulate
+complex scientific queries, we anticipate substantial gains in retrieval performance and semantic alignment.
 
 ## Development
 
