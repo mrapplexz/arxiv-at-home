@@ -5,16 +5,18 @@ from qdrant_client import AsyncQdrantClient
 from starlette.types import Lifespan
 from tokenizers import Tokenizer
 
-from arxiv_at_home.api.component.reranker.model import (
-    GenerativeReranker,
-    RerankInputProcessor,
+from arxiv_at_home.api.component.reranker.factory import (
     create_rerank_processor,
-    create_rerank_tokenizer,
+    create_rerank_template,
     create_reranker,
 )
+from arxiv_at_home.api.component.reranker.model import GenerativeReranker, RerankInputProcessor
+from arxiv_at_home.api.component.reranker.template import RerankTemplate
 from arxiv_at_home.api.settings import ApiSettings
 from arxiv_at_home.common.database.manager import AsyncDatabaseManager, new_database_manager
-from arxiv_at_home.common.dense.vectorizer import DenseVectorizer, create_dense_tokenizer, create_dense_vectorizer
+from arxiv_at_home.common.dense.factory import create_dense_template, create_dense_tokenizer, create_dense_vectorizer
+from arxiv_at_home.common.dense.template import DenseEncodingTemplate
+from arxiv_at_home.common.dense.vectorizer import DenseVectorizer
 from arxiv_at_home.common.qdrant.factory import create_qdrant
 
 
@@ -25,10 +27,11 @@ class AppState:
 
     dense_vectorizer: DenseVectorizer
     dense_tokenizer: Tokenizer
+    dense_template: DenseEncodingTemplate
 
     reranker: GenerativeReranker
     reranker_processor: RerankInputProcessor
-    reranker_tokenizer: Tokenizer
+    reranker_template: RerankTemplate
 
 
 _state = AppState()
@@ -48,9 +51,10 @@ def lifespan_factory(config: ApiSettings) -> Lifespan:
             ):
                 _state.dense_vectorizer = dense_vectorizer
                 _state.dense_tokenizer = create_dense_tokenizer(config.dense_vectorizer)
+                _state.dense_template = create_dense_template(config.dense_vectorizer)
 
                 _state.reranker = reranker
-                _state.reranker_tokenizer = create_rerank_tokenizer(config.reranker)
+                _state.reranker_template = create_rerank_template(config.reranker)
                 _state.reranker_processor = create_rerank_processor(config.reranker)
 
                 yield

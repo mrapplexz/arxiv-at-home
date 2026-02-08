@@ -1,21 +1,12 @@
-from collections.abc import Generator
-from contextlib import contextmanager
 from typing import TypedDict
 
 import torch
 import torch.nn.functional as F  # noqa: N812
 from d9d.dataset import PaddingSide1D, pad_stack_1d
-from pydantic import BaseModel
 from tokenizers import Tokenizer
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM
 
-
-class RerankerConfig(BaseModel):
-    device: str
-    model: str
-
-    token_true: str = "yes"  # noqa: S105
-    token_false: str = "no"  # noqa: S105
+from arxiv_at_home.api.component.reranker.config import RerankerConfig
 
 
 class RerankInputs(TypedDict):
@@ -28,28 +19,16 @@ class RerankInputProcessor:
         self._tokenizer = tokenizer
         self._device = device
 
-        # Qwen3-Reranker specific prompt structure
-        prefix = (
-            "<|im_start|>system\n"
-            "Judge whether the Document meets the requirements based on the Query and the Instruct provided. "
-            'Note that the answer can only be "yes" or "no".'
-            "<|im_end|>\n<|im_start|>user\n"
-        )
-        suffix = "<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n"
-
-        self._prefix_tokens = self._tokenizer.encode(prefix, add_special_tokens=False)
-        self._suffix_tokens = self._tokenizer.encode(suffix, add_special_tokens=False)
-
     def _encode_template(self, template: str) -> RerankInputs:
         input_tokens = self._tokenizer.encode(template)
         return {
             "input_ids": torch.tensor(
-                self._prefix_tokens.ids + input_tokens.ids + self._suffix_tokens.ids,
+                input_tokens.ids,
                 dtype=torch.long,
                 device=self._device,
             ),
             "attention_mask": torch.tensor(
-                self._prefix_tokens.attention_mask + input_tokens.attention_mask + self._suffix_tokens.attention_mask,
+                input_tokens.attention_mask,
                 dtype=torch.long,
                 device=self._device,
             ),
@@ -99,22 +78,3 @@ class GenerativeReranker:
         scores = log_probs[:, 1].exp().tolist()
 
         return scores
-
-
-@contextmanager
-def create_reranker(config: RerankerConfig) -> Generator[GenerativeReranker, None, None]:
-    model = (
-        AutoModelForCausalLM.from_pretrained(config.model, dtype=torch.bfloat16, attn_implementation="sdpa")
-        .eval()
-        .to(config.device)
-    )
-
-    yield GenerativeReranker(config, model, create_rerank_tokenizer(config))
-
-
-def create_rerank_tokenizer(config: RerankerConfig) -> Tokenizer:
-    return AutoTokenizer.from_pretrained(config.model).backend_tokenizer
-
-
-def create_rerank_processor(config: RerankerConfig) -> RerankInputProcessor:
-    return RerankInputProcessor(create_rerank_tokenizer(config), config.device)

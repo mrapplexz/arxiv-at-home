@@ -2,11 +2,16 @@
   "dense_vectorizer": {
     "device": "cuda",
     "model": "Qwen/Qwen3-Embedding-0.6B",
-    "pooling": "last_token"
+    "pooling": "last_token",
+    "query_template": "Instruct: Given an academic database search query, retrieve relevant articles that are relevant to the query\nQuery: $QUERY",
+    "document_template": "$DOCUMENT"
   },
   "reranker": {
     "model": "Qwen/Qwen3-Reranker-0.6B",
-    "device": "cuda"
+    "device": "cuda",
+    "template": "<|im_start|>system\nJudge whether the Document meets the requirements based on the Query and the Instruct provided. Note that the answer can only be \"yes\" or \"no\".<|im_end|>\n<|im_start|>user\n<Instruct>: Given an academic database search query, retrieve relevant articles that satisfy the query\n<Query>: $QUERY\n<Document>: $DOCUMENT<|im_end|>\n<|im_start|>assistant\n<think>\n\n</think>\n\n",
+    "token_true": "yes",
+    "token_false": "no"
   },
   "search": {
     "prefetch_more_times": 3

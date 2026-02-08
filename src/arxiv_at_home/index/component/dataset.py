@@ -26,13 +26,18 @@ class PaperMetadataDatasetConfig(BaseModel):
 
 class PaperMetadataDataset(IterableDataset):
     def __init__(
-        self, db_config: DatabaseConfig, db_chunk_size: int, dense_tokenizer: Tokenizer, tokenization_prefix: str
+        self,
+        db_config: DatabaseConfig,
+        db_chunk_size: int,
+        dense_tokenizer: Tokenizer,
+        dense_template: DenseEncodingTemplate,
+        tokenization_prefix: str,
     ) -> None:
         self._db_config = db_config
         self._db_chunk_size = db_chunk_size
         self._tokenizer = dense_tokenizer
         self._tokenization_prefix = tokenization_prefix
-        self._template = DenseEncodingTemplate()
+        self._template = dense_template
 
     def __iter__(self) -> Iterator[PaperMetadataDatasetSample]:
         loop = asyncio.new_event_loop()
@@ -114,10 +119,17 @@ class PaperMetadataCollator:
 
 
 def create_paper_metadata_data_loader(
-    db_config: DatabaseConfig, dense_tokenizer: Tokenizer, config: PaperMetadataDatasetConfig
+    db_config: DatabaseConfig,
+    dense_tokenizer: Tokenizer,
+    dense_template: DenseEncodingTemplate,
+    config: PaperMetadataDatasetConfig,
 ) -> DataLoader:
     dataset = PaperMetadataDataset(
-        db_config=db_config, db_chunk_size=config.db_chunk_size, dense_tokenizer=dense_tokenizer, tokenization_prefix=""
+        db_config=db_config,
+        db_chunk_size=config.db_chunk_size,
+        dense_tokenizer=dense_tokenizer,
+        tokenization_prefix="",
+        dense_template=dense_template,
     )
 
     collator = PaperMetadataCollator()

@@ -1,29 +1,15 @@
-from collections.abc import Generator
-from contextlib import contextmanager
-from enum import StrEnum
 from typing import TypedDict
 
 import torch
 import torch.nn.functional as F  # noqa: N812
-from pydantic import BaseModel
-from tokenizers import Tokenizer
-from transformers import AutoModel, AutoTokenizer
+from transformers import AutoModel
+
+from arxiv_at_home.common.dense.config import DenseVectorizationConfig, PoolingMode
 
 
 class VectorizerInputs(TypedDict):
     input_ids: torch.Tensor
     attention_mask: torch.Tensor
-
-
-class PoolingMode(StrEnum):
-    last_token = "last_token"  # noqa: S105
-    first_token = "first_token"  # noqa: S105
-
-
-class DenseVectorizationConfig(BaseModel):
-    device: str
-    model: str
-    pooling: PoolingMode
 
 
 def pool_tokens(last_hidden_states: torch.Tensor, attention_mask: torch.Tensor, mode: PoolingMode) -> torch.Tensor:
@@ -57,13 +43,3 @@ class DenseVectorizer:
         embeddings = F.normalize(pooled, p=2, dim=1)
 
         return list(embeddings.cpu())
-
-
-@contextmanager
-def create_dense_vectorizer(config: DenseVectorizationConfig) -> Generator[DenseVectorizer, None, None]:
-    model = AutoModel.from_pretrained(config.model, attn_implementation="sdpa").eval().to(config.device)
-    yield DenseVectorizer(config, model)
-
-
-def create_dense_tokenizer(config: DenseVectorizationConfig) -> Tokenizer:
-    return AutoTokenizer.from_pretrained(config.model).backend_tokenizer

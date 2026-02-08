@@ -2,7 +2,8 @@ from tqdm import tqdm
 
 from arxiv_at_home.common.database.manager import AsyncDatabaseManager, new_database_manager
 from arxiv_at_home.common.database.repository import PaperMetadataRepository
-from arxiv_at_home.common.dense.vectorizer import DenseVectorizer, create_dense_tokenizer, create_dense_vectorizer
+from arxiv_at_home.common.dense.factory import create_dense_template, create_dense_tokenizer, create_dense_vectorizer
+from arxiv_at_home.common.dense.vectorizer import DenseVectorizer
 from arxiv_at_home.common.dto import PaperMetadata
 from arxiv_at_home.common.qdrant.factory import create_qdrant
 from arxiv_at_home.index.component.batch_type import PaperMetadataDatasetBatch
@@ -46,7 +47,10 @@ class IndexEngine:
                     await repo.clear_indexing_reservations()
                     estimated_count = await repo.estimate_count_for_indexing()
                 data_loader = create_paper_metadata_data_loader(
-                    db_config=self._config.database, dense_tokenizer=tokenizer, config=self._config.dataset
+                    db_config=self._config.database,
+                    dense_tokenizer=tokenizer,
+                    config=self._config.dataset,
+                    dense_template=create_dense_template(self._config.dense_vectorizer),
                 )
                 with tqdm(desc="Indexing", total=estimated_count) as pbar:
                     for batch in data_loader:

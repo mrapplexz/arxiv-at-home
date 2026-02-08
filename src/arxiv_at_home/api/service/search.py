@@ -3,12 +3,10 @@ import time
 import torch
 from qdrant_client import models
 
-from arxiv_at_home.api.component.reranker.template import RerankTemplate
 from arxiv_at_home.api.dependencies import AppState
 from arxiv_at_home.api.dto import ScoredPaper, SearchRequest, SearchResponse, SearchStats
 from arxiv_at_home.api.settings import SearchConfig
 from arxiv_at_home.common.database.repository import PaperMetadataRepository
-from arxiv_at_home.common.dense.template import DenseEncodingTemplate
 from arxiv_at_home.common.dense.vectorizer import VectorizerInputs
 from arxiv_at_home.common.dto import PaperMetadata
 from arxiv_at_home.common.qdrant.config import QDRANT_SPARSE_MODEL
@@ -20,29 +18,29 @@ class SearchService:
     ) -> None:
         self._config = config
         self._qdrant = state.qdrant
-        self._vectorizer = state.dense_vectorizer
+        self._dense_vectorizer = state.dense_vectorizer
         self._dense_tokenizer = state.dense_tokenizer
-        self._repo = paper_metadata_repository
-        self._template_encode = DenseEncodingTemplate()
+        self._dense_template = state.dense_template
 
-        self._template_rerank = RerankTemplate()
+        self._repo = paper_metadata_repository
+
         self._reranker = state.reranker
         self._reranker_processor = state.reranker_processor
-        self._reranker_tokenizer = state.reranker_tokenizer
+        self._reranker_template = state.reranker_template
 
     def _vectorize_query(self, text: str) -> list[float]:
-        encoding = self._dense_tokenizer.encode(self._template_encode.template_query(text))
+        encoding = self._dense_tokenizer.encode(self._dense_template.template_query(text))
 
         inputs: VectorizerInputs = {
             "input_ids": torch.tensor([encoding.ids], dtype=torch.long),
             "attention_mask": torch.tensor([encoding.attention_mask], dtype=torch.long),
         }
 
-        embeddings = self._vectorizer(inputs)
+        embeddings = self._dense_vectorizer(inputs)
         return embeddings[0].tolist()
 
     def _rerank_documents(self, query: str, documents: list[PaperMetadata]) -> list[float]:
-        templates = [self._template_rerank.format(query, doc) for doc in documents]
+        templates = [self._reranker_template.format(query, doc) for doc in documents]
         inputs = self._reranker_processor.encode(templates)
         results = self._reranker(inputs)
         return results

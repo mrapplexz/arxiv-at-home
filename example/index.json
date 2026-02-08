@@ -7,6 +7,8 @@
   "dense_vectorizer": {
     "device": "cuda",
     "model": "Qwen/Qwen3-Embedding-0.6B",
-    "pooling": "last_token"
+    "pooling": "last_token",
+    "query_template": "Instruct: Given an academic database search query, retrieve relevant articles that are relevant to the query\nQuery: $QUERY",
+    "document_template": "$DOCUMENT"
   }
 }

@@ -59,6 +59,6 @@ class CollectionPopulator:
                 self._vectors_from_meta(sparse_text, dense_vec)
                 for sparse_text, dense_vec in zip(sparse_texts, dense_vectors, strict=True)
             ],
-            payaload=[self._payload_from_meta(meta) for meta in metadata],
+            payload=[self._payload_from_meta(meta) for meta in metadata],
             ids=[metadata_to_uuid(meta) for meta in metadata],  # deterministic uuidv5 ids
         )
