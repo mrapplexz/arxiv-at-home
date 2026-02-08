@@ -31,6 +31,7 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "python-semantic-release>=10.5.3",
     "ruff>=0.15.0",
     "ty>=0.0.15",
 ]
@@ -164,3 +165,31 @@ indent-style = "space"
 exclude = [
     "alembic/**"
 ]
+
+
+[tool.semantic_release]
+allow_zero_version = true
+major_on_zero = true
+version_toml = ["pyproject.toml:project.version"]
+build_command = false
+commit_parser = "conventional"
+
+[tool.semantic_release.commit_parser_options]
+minor_tags = ["feat"]
+patch_tags = ["fix", "perf"]
+parse_squash_commits = true
+ignore_merge_commits = true
+
+[tool.semantic_release.changelog]
+exclude_commit_patterns = [
+    '''chore(?:\([^)]*?\))?: .+''',
+    '''ci(?:\([^)]*?\))?: .+''',
+    '''refactor(?:\([^)]*?\))?: .+''',
+    '''style(?:\([^)]*?\))?: .+''',
+    '''test(?:\([^)]*?\))?: .+''',
+    '''build\((?!deps\): .+)''',
+    '''Initial [Cc]ommit.*''',
+]
+
+[tool.semantic_release.remote]
+type = "github"
