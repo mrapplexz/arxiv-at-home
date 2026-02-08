@@ -153,7 +153,7 @@ docker run --rm --network host --gpus all --env-file .env \
 ### 4. Run the API
 
 ```bash
-docker run --rm --network host --env-file .env \
+docker run --rm --network host --gpus all --env-file .env \
   -v "$(pwd):/data" \
   -p 1337:1337 \
   mrapplexz/arxiv-at-home arxiv_at_home.api --config-path /data/example/api.json
