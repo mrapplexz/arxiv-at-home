@@ -8,6 +8,10 @@ A self-hosted semantic search engine for Arxiv papers.
   precision.
 * **Self-Hosted**: Run everything locally on your own infrastructure (except for optional **Citation Reranking**
   feature).
+* **Robust Scalability & Data Integrity**: Designed to ingest metadata from multiple paper sources. The system supports
+  efficient incremental index updates, and we ensure data consistency during write operations.
+* **High Availability & Redundancy**: The API architecture is stateless and concurrency-safe, allowing it to be deployed
+  across multiple instances.
 
 ## Prerequisites
 
