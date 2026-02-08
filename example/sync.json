@@ -1,0 +1,21 @@
+{
+  "metadata_providers": [
+    {
+      "type": "kaggle_json",
+      "path": "./data/kaggle-json/arxiv-metadata-oai-snapshot.json"
+    }
+  ],
+  "filter_categories": [
+    "cs.AI",
+    "cs.AR",
+    "cs.CL",
+    "cs.CV",
+    "cs.DC",
+    "cs.IR",
+    "cs.LG",
+    "cs.MA",
+    "cs.NE",
+    "cs.PF"
+  ],
+  "batch_size": 128
+}

@@ -1,0 +1,12 @@
+{
+  "dataset": {
+    "db_chunk_size": 1000,
+    "batch_size": 64,
+    "num_workers": 4
+  },
+  "dense_vectorizer": {
+    "device": "cuda",
+    "model": "Qwen/Qwen3-Embedding-0.6B",
+    "pooling": "last_token"
+  }
+}

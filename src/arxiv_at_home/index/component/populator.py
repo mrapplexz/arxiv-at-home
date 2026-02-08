@@ -1,0 +1,65 @@
+import uuid
+from typing import Any
+
+import torch
+from qdrant_client import QdrantClient
+from qdrant_client.http.models import Distance, Document, Modifier, SparseIndexParams, SparseVectorParams, VectorParams
+
+from arxiv_at_home.common.dto import PaperMetadata
+
+_SPARSE_MODEL = "Qdrant/bm25"
+
+
+def metadata_to_uuid(metadata: PaperMetadata) -> uuid.UUID:
+    return uuid.uuid5(uuid.NAMESPACE_DNS, metadata.fully_qualified_name)
+
+
+class CollectionPopulator:
+    def __init__(self, client: QdrantClient) -> None:
+        self._client = client
+
+    def _ensure_collection(self, source: str, dense_dim: int) -> None:
+        if not self._client.collection_exists(source):
+            self._client.create_collection(
+                collection_name=source,
+                sparse_vectors_config={
+                    "metadata/sparse": SparseVectorParams(index=SparseIndexParams(), modifier=Modifier.IDF),
+                },
+                vectors_config={"metadata/dense": VectorParams(size=dense_dim, distance=Distance.COSINE)},
+            )
+
+    def _vectors_from_meta(self, sparse_text: str, dense_vector: torch.Tensor) -> dict[str, Any]:
+        return {
+            "metadata/sparse": Document(text=sparse_text, model=_SPARSE_MODEL),
+            "metadata/dense": dense_vector.tolist(),
+        }
+
+    def _payload_from_meta(self, meta: PaperMetadata) -> dict[str, Any]:
+        return {
+            "title": meta.title,  # for debugging purposes only
+            "n_versions": len(meta.versions),
+            "journal_ref": meta.journal_ref,
+            "fully_qualified_name": meta.fully_qualified_name,
+            "updated_at": meta.updated_at,
+            "categories": list(meta.categories),
+        }
+
+    def upsert_metadata(
+        self, metadata: list[PaperMetadata], sparse_texts: list[str], dense_vectors: list[torch.Tensor]
+    ) -> None:
+        if not metadata:
+            return
+
+        collection_name = metadata[0].source
+        dense_dim = dense_vectors[0].shape[0]
+
+        self._ensure_collection(collection_name, dense_dim)
+        self._client.upload_collection(
+            collection_name=collection_name,
+            vectors=[
+                self._vectors_from_meta(sparse_text, dense_vec)
+                for sparse_text, dense_vec in zip(sparse_texts, dense_vectors, strict=True)
+            ],
+            payaload=[self._payload_from_meta(meta) for meta in metadata],
+            ids=[metadata_to_uuid(meta) for meta in metadata],  # deterministic uuidv5 ids
+        )

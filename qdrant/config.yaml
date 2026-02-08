@@ -1,0 +1,5 @@
+storage:
+  optimizer:
+    default_segment_number: 2
+service:
+  grpc_port: 6334

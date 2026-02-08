@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  qdrant:
+    image: qdrant/qdrant
+    container_name: qdrant
+    ports:
+      - "6333:6333" # HTTP API and Dashboard
+      - "6334:6334" # gRPC API
+    volumes:
+      - ./data/qdrant_storage:/qdrant/storage:z
+      - ./qdrant/config.yaml:/qdrant/config/production.yaml:ro
+    restart: unless-stopped
+    environment:
+      - QDRANT__SERVICE__ENABLE_GRPC=true
+  db:
+    image: postgres:alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: arxivathome
+      POSTGRES_PASSWORD: arxivathome
+      POSTGRES_DB: arxivathome
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./data/postgres:/var/lib/postgresql
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U arxivathome -d arxivathome" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
