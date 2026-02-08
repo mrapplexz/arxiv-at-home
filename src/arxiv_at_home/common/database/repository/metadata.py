@@ -130,3 +130,23 @@ class PaperMetadataRepository:
         )
         result = await self._session.execute(stmt)
         return result.scalar_one()
+
+    async def get_by_ids(self, fully_qualified_names: list[str]) -> list[PaperMetadata]:
+        if not fully_qualified_names:
+            return []
+
+        stmt = sa.select(PaperMetadataStored).where(PaperMetadataStored.fully_qualified_name.in_(fully_qualified_names))
+
+        result = await self._session.execute(stmt)
+        stored_papers = result.scalars().all()
+
+        paper_map = {p.fully_qualified_name: p for p in stored_papers}
+
+        ordered_papers = []
+
+        for fqn in fully_qualified_names:
+            if fqn in paper_map:
+                obj = paper_map[fqn]
+                ordered_papers.append(PaperMetadata.model_validate(obj.paper_metadata))
+
+        return ordered_papers

@@ -1,0 +1,14 @@
+{
+  "dense_vectorizer": {
+    "device": "cuda",
+    "model": "Qwen/Qwen3-Embedding-0.6B",
+    "pooling": "last_token"
+  },
+  "reranker": {
+    "model": "Qwen/Qwen3-Reranker-0.6B",
+    "device": "cuda"
+  },
+  "search": {
+    "prefetch_more_times": 3
+  }
+}

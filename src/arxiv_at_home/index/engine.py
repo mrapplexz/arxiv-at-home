@@ -27,7 +27,7 @@ class IndexEngine:
 
         dense_embeddings = vectorizer(metadata_inputs["dense"])
 
-        populator.upsert_metadata(
+        await populator.upsert_metadata(
             metadata=metadata, dense_vectors=dense_embeddings, sparse_texts=metadata_inputs["sparse"]["text"]
         )
 

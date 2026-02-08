@@ -10,3 +10,9 @@ Categories: {categories}.
 
 Abstract: {metadata.abstract}
         """.strip()
+
+    def template_query(self, query: str) -> str:
+        return f"""
+Instruct: Given an academic database search query, retrieve relevant articles that are relevant to the query
+Query:{query}
+        """.strip()
