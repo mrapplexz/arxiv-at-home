@@ -24,6 +24,8 @@ A self-hosted, modular semantic search engine for academic papers.
       re-ingesting the entire dataset.
 * **High Availability**: The API is stateless and concurrency-safe; all state is persistent in PostgreSQL and Qdrant.
 
+# Installation (Source Code)
+
 ## Prerequisites
 
 * Docker & Docker Compose
@@ -113,6 +115,51 @@ The API will be available at `http://localhost:1337` with default configuration.
 
 Note that you can run multiple API instances safely to scale horizontally - it is stateles.
 
+## Running via Docker Image
+
+If you prefer not to set up a local Python environment, you can run the application components using the pre-built Docker image: `mrapplexz/arxiv-at-home`.
+
+**Prerequisites for Docker Run:**
+* Ensure your `.env` file lists the database host as accessible from the container (e.g., `host.docker.internal` for Docker Desktop, or use `--network host` on Linux).
+* In the examples below, we mount the current directory (`$(pwd)`) to `/data` inside the container. You must update your config JSON files (e.g., `example/sync.json`) to point to file paths inside `/data/`.
+
+### 1. Database Migration
+
+```bash
+docker run --rm --network host --env-file .env \
+  mrapplexz/arxiv-at-home arxiv_at_home.migrate
+```
+
+### 2. Sync Metadata
+
+Ensure the Kaggle JSON dump is in your current directory (or adjust the volume mount).
+
+```bash
+docker run --rm --network host --env-file .env \
+  -v "$(pwd):/data" \
+  mrapplexz/arxiv-at-home arxiv_at_home.sync --config-path /data/example/sync.json
+```
+
+### 3. Index Papers (GPU Recommended)
+
+If you have an NVIDIA GPU, add the `--gpus all` flag:
+
+```bash
+docker run --rm --network host --gpus all --env-file .env \
+  -v "$(pwd):/data" \
+  mrapplexz/arxiv-at-home arxiv_at_home.index --config-path /data/example/index.json
+```
+
+### 4. Run the API
+
+```bash
+docker run --rm --network host --env-file .env \
+  -v "$(pwd):/data" \
+  -p 1337:1337 \
+  mrapplexz/arxiv-at-home arxiv_at_home.api --config-path /data/example/api.json
+```
+
+
 ## Configuration Reference
 
 Please see the Pydantic model definitions:
@@ -173,4 +220,5 @@ The project uses `ruff` for linting and formatting.
 ```bash
 uv run ruff check
 uv run ruff format
+```
 ```
