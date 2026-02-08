@@ -11,6 +11,7 @@ class SearchRequest(BaseModel):
 
 class ScoredPaper(BaseModel):
     score: float
+    citations: int | None
     paper: PaperMetadata
 
 

@@ -5,6 +5,8 @@ from qdrant_client import AsyncQdrantClient
 from starlette.types import Lifespan
 from tokenizers import Tokenizer
 
+from arxiv_at_home.api.component.citation_provider.base import CitationProvider
+from arxiv_at_home.api.component.citation_provider.factory import create_citation_provider
 from arxiv_at_home.api.component.reranker.factory import (
     create_rerank_processor,
     create_rerank_template,
@@ -24,6 +26,8 @@ class AppState:
     settings: ApiSettings
     qdrant: AsyncQdrantClient
     db_manager: AsyncDatabaseManager
+
+    citation_provider: CitationProvider
 
     dense_vectorizer: DenseVectorizer
     dense_tokenizer: Tokenizer
@@ -56,6 +60,8 @@ def lifespan_factory(config: ApiSettings) -> Lifespan:
                 _state.reranker = reranker
                 _state.reranker_template = create_rerank_template(config.reranker)
                 _state.reranker_processor = create_rerank_processor(config.reranker)
+
+                _state.citation_provider = create_citation_provider(config.citation_provider)
 
                 yield
 

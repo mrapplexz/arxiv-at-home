@@ -4,7 +4,7 @@ A self-hosted semantic search engine for Arxiv papers.
 
 ## Features
 
-* **Hybrid Search**: Combines semantic retrieval, keyword search with both neural and citation re-ranking for high
+* **Hybrid Search**: Combines **Semantic Retrieval**, **Keyword Retrieval (BM-25)**, **Neural Reranking** and **Citation-based re-ranking** for high
   precision.
 * **Self-Hosted**: Run everything locally on your own infrastructure (except for optional **Citation Reranking**
   feature).
@@ -82,7 +82,7 @@ uv run python -m arxiv_at_home.sync --config-path example/sync.json
 
 Generate vector embeddings for the papers and index them.
 
-This step requires a modern GPU for reasonable performance, although it can run on CPU (slowly).
+This step requires a modern GPU for reasonable performance, although it can run on CPU (slowly). On a single RTX 3090 GPU it takes several hours to index all the `cs.*` papers.
 
 You can re-run this package to do an incremental update - it will work out of the box.
 
