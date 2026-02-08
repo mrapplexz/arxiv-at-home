@@ -1,23 +1,35 @@
 # Arxiv at Home
 
-A self-hosted semantic search engine for Arxiv papers.
+A self-hosted, modular semantic search engine for academic papers.
 
 ## Features
 
-* **Hybrid Search**: Combines **Semantic Retrieval**, **Keyword Retrieval (BM-25)**, **Neural Reranking** and **Citation-based re-ranking** for high
-  precision.
-* **Self-Hosted**: Run everything locally on your own infrastructure (except for optional **Citation Reranking**
-  feature).
-* **Robust Scalability & Data Integrity**: Designed to ingest metadata from multiple paper sources. The system supports
-  efficient incremental index updates, and we ensure data consistency during write operations.
-* **High Availability & Redundancy**: The API architecture is stateless and concurrency-safe, allowing it to be deployed
-  across multiple instances.
+* **Advanced Hybrid Search**:
+    * **Retrieval**: Combines **Dense Vector Retrieval** (Embeddings) and **Sparse Vector Retrieval** (BM-25) for robust
+      candidate generation.
+    * **Generative Reranking**: Utilizes Causal LLMs (e.g., Qwen) in a pointwise fashion to score relevance based on
+      token probabilities.
+    * **Citation Boosting**: Optionally modulates semantic scores using a logarithmic citation
+      boost to surface highly impactful papers.
+* **Modular Architecture**:
+    * **Pluggable Ingestion**: The system is designed to allow ingestion from
+      multiple sources. Currently supports only **arXiv Metadata Dump from Kaggle**.
+    * **Pluggable Citations**: Supports **Semantic Scholar** for real-time citation counts, with a **NoOp** fallback for
+      fully offline/isolated deployments.
+* **Robust Data Consistency**:
+    * **ACID-Compliant Indexing**: A specific "Reservation" system in PostgreSQL uses row-level locking to ensure
+      exactly-once indexing. This allows multiple indexer workers to run
+      concurrently without race conditions.
+    * **Incremental Sync**: Tracks synchronization state per source, allowing for efficient daily updates without
+      re-ingesting the entire dataset.
+* **High Availability**: The API is stateless and concurrency-safe; all state is persistent in PostgreSQL and Qdrant.
 
 ## Prerequisites
 
 * Docker & Docker Compose
 * Python 3.11+
-* [uv](https://github.com/astral-sh/uv)
+* [uv](https://github.com/astral-sh/uv) (for dependency management)
+* *Recommended*: NVIDIA GPU with CUDA support for Indexing and Reranking.
 
 ## Installation & Setup
 
@@ -38,24 +50,20 @@ A self-hosted semantic search engine for Arxiv papers.
 
 3. **Configure Environment**
 
-   Copy the example environment file:
+   Copy the example environment file and edit it:
 
    ```bash
    cp .env.example .env
+   # edit .env
    ```
-
-   Edit `.env` if you need to customize database credentials or ports.
 
 4. **Install Dependencies**
 
-   Using `uv`:
    ```bash
    uv sync
    ```
 
 ## Usage
-
-The project consists of several components that need to be run in sequence to set up the system.
 
 ### 1. Database Migration
 
@@ -67,26 +75,27 @@ uv run python -m arxiv_at_home.migrate
 
 ### 2. Sync Metadata
 
-Import paper metadata into the database. You'll need the Arxiv metadata dataset (e.g.,
-`arxiv-metadata-oai-snapshot.json` from [Kaggle](https://www.kaggle.com/datasets/Cornell-University/arxiv)).
+Import paper metadata into the database.
 
-You can re-run this package to do an incremental update - it will work out of the box.
+Currently, the system supports the **Kaggle Arxiv Dataset**.
 
-Configure the sync process in `example/sync.json`, ensuring the `path` points to your dataset file.
+1. Download `arxiv-metadata-oai-snapshot.json` from [Kaggle](https://www.kaggle.com/datasets/Cornell-University/arxiv).
+2. Configure `example/sync.json`.
+    * **Note**: You can define `filter_categories` (e.g., `["cs.AI", "cs.LG"]`) to only ingest specific domains.
 
 ```bash
 uv run python -m arxiv_at_home.sync --config-path example/sync.json
 ```
 
+You can safely re-run this module to sync with a new Kaggle dump file. The system will upsert only modified paper
+metadata.
+
 ### 3. Index Papers
 
-Generate vector embeddings for the papers and index them.
+Generate embeddings and index them.
 
-This step requires a modern GPU for reasonable performance, although it can run on CPU (slowly). On a single RTX 3090 GPU it takes several hours to index all the `cs.*` papers.
-
-You can re-run this package to do an incremental update - it will work out of the box.
-
-Configure the indexing process in `example/index.json`.
+The indexer pulls papers from the sync stage that have not been indexed yet. It uses a "Reservation" mechanism, meaning
+you can stop and restart the process at any time, or run multiple indexers in parallel.
 
 ```bash
 uv run python -m arxiv_at_home.index --config-path example/index.json
@@ -94,42 +103,66 @@ uv run python -m arxiv_at_home.index --config-path example/index.json
 
 ### 4. Run the API
 
-Start the REST API server.
-
-Configure the API settings in `example/api.json`.
+Start the REST API server to serve search traffic.
 
 ```bash
 uv run python -m arxiv_at_home.api --config-path example/api.json
 ```
 
-The API will be available at `http://localhost:1337` (or whatever port you configured). You can access the interactive
-API documentation at `http://localhost:1337/docs`.
+The API will be available at `http://localhost:1337` with default configuration.
+
+Note that you can run multiple API instances safely to scale horizontally - it is stateles.
+
+## Configuration Reference
+
+Please see the Pydantic model definitions:
+
+* [Migrations](https://github.com/mrapplexz/arxiv-at-home/blob/main/src/arxiv_at_home/migrate/settings.py)
+* [Sync](https://github.com/mrapplexz/arxiv-at-home/blob/main/src/arxiv_at_home/sync/settings.py)
+* [Index](https://github.com/mrapplexz/arxiv-at-home/blob/main/src/arxiv_at_home/index/settings.py)
+* [API](https://github.com/mrapplexz/arxiv-at-home/blob/main/src/arxiv_at_home/api/settings.py)
+
+## Architecture Details
+
+### Search Workflow
+
+1. **Vectorization**: The user query is tokenized and embedded using the configured Dense Vectorizer.
+2. **Qdrant Retrieval**: A fused query is sent to Qdrant:
+    * `metadata/dense`
+    * `metadata/sparse` (BM25 with IDF - it uses internal `fastembed` implementation)
+    * Fused via `Fusion.DBSF` (Distribution-Based Score Fusion).
+3. **Hydration**: Full paper metadata is retrieved from the storage database based on the IDs returned by Qdrant.
+4. **Citation Context**: Citation counts are fetched from the configured provider (e.g., Semantic Scholar).
+5. **Reranking**:
+    1. **Semantic**: The Causal LLM scores the `(Query, Paper)` pair.
+    2. **Boosting**: The score is adjusted: `Final = SemanticScore * (1 + weight * log10(Citations + 1))`.
+6. **Response**: The top `k` results are returned.
 
 ## Limitations and Future Work
 
 ### Data Ingestion Pipelines
 
-Currently, we implement the only synchronization provider that relies on periodic snapshots from Kaggle datasets.
-While effective for prototyping, this introduces a synchronization latency.
-Our project architecture supports different paper metadata providers. Future iterations may implement an ingestion
-pipeline based on the Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH), facilitating direct and
+Currently, we implement the synchronization provider that relies on periodic snapshots from Kaggle datasets. While
+effective for prototyping, this introduces a synchronization latency.
+Our project architecture involves a `PaperMetadataProvider` abstraction. Future iterations may implement an ingestion
+pipeline based on the **Open Archives Initiative Protocol for Metadata Harvesting (OAI-PMH)**, facilitating direct and
 immediate synchronization with arXiv servers.
 
 ### Citation Topology
 
 A significant constraint in the current system is the reliance on the Semantic Scholar API for citation metrics. This
-design choice was necessitated by the financial constraints of accessing arXiv's "requester-pays" S3 buckets for bulk
-source file retrieval. In future work, one may implement a full-dump synchronization strategy that ingests raw TeX
-sources.
-This will enable the construction of a proprietary citation graph, allowing for more accurate and cost-effective
-citation topology estimation.
+design choice was necessitated by the constraints of accessing arXiv's "requester-pays" S3 buckets for bulk source file
+retrieval.
+In future work, one may implement a full-dump synchronization strategy that ingests raw TeX sources. This will enable
+the construction of a proprietary citation graph, allowing for more accurate and cost-effective citation topology
+estimation locally.
 
 ### Domain-Specific Embeddings
 
-We currently employ Qwen3-Embedding-0.6B for vector representation and Qwen3-Reranker-0.6B for neural reranking. While
-effective, these models lack the granular understanding required for niche scientific domains. To address this, we plan
-to train custom embedding and reranking models. By utilizing synthetic data generation to simulate
-complex scientific queries, we anticipate substantial gains in retrieval performance and semantic alignment.
+We currently employ generic Qwen models for vector representation and neural reranking. While effective, these models
+lack the granular understanding required for niche scientific domains. To address this, we plan to train custom
+embedding and reranking models. By utilizing synthetic data generation to simulate complex scientific queries, we
+anticipate substantial gains in retrieval performance.
 
 ## Development
 
