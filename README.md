@@ -9,8 +9,12 @@ A self-hosted, modular semantic search engine for academic papers.
       candidate generation.
     * **Generative Reranking**: Utilizes Causal LLMs (e.g., Qwen) in a pointwise fashion to score relevance based on
       token probabilities.
-    * **Citation Boosting**: Optionally modulates semantic scores using a logarithmic citation
-      boost to surface highly impactful papers.
+    * **Smart Boosting**:
+        * **Citation Boosting**: Optionally modulates semantic scores using a logarithmic citation boost to surface
+          highly
+          impactful papers.
+        * **Fuzzy Title Boosting**: Detects when a user query closely resembles a paper title (using fuzzy matching) and
+          applies a score multiplier to ensure specific papers are found immediately.
 * **Modular Architecture**:
     * **Pluggable Ingestion**: The system is designed to allow ingestion from
       multiple sources. Currently supports only **arXiv Metadata Dump from Kaggle**.
@@ -117,11 +121,15 @@ Note that you can run multiple API instances safely to scale horizontally - it i
 
 ## Running via Docker Image
 
-If you prefer not to set up a local Python environment, you can run the application components using the pre-built Docker image: `mrapplexz/arxiv-at-home`.
+If you prefer not to set up a local Python environment, you can run the application components using the pre-built
+Docker image: `mrapplexz/arxiv-at-home`.
 
 **Prerequisites for Docker Run:**
-* Ensure your `.env` file lists the database host as accessible from the container (e.g., `host.docker.internal` for Docker Desktop, or use `--network host` on Linux).
-* In the examples below, we mount the current directory (`$(pwd)`) to `/data` inside the container. You must update your config JSON files (e.g., `example/sync.json`) to point to file paths inside `/data/`.
+
+* Ensure your `.env` file lists the database host as accessible from the container (e.g., `host.docker.internal` for
+  Docker Desktop, or use `--network host` on Linux).
+* In the examples below, we mount the current directory (`$(pwd)`) to `/data` inside the container. You must update your
+  config JSON files (e.g., `example/sync.json`) to point to file paths inside `/data/`.
 
 ### 1. Database Migration
 
@@ -159,7 +167,6 @@ docker run --rm --network host --gpus all --env-file .env \
   mrapplexz/arxiv-at-home arxiv_at_home.api --config-path /data/example/api.json
 ```
 
-
 ## Configuration Reference
 
 Please see the Pydantic model definitions:
@@ -182,7 +189,9 @@ Please see the Pydantic model definitions:
 4. **Citation Context**: Citation counts are fetched from the configured provider (e.g., Semantic Scholar).
 5. **Reranking**:
     1. **Semantic**: The Causal LLM scores the `(Query, Paper)` pair.
-    2. **Boosting**: The score is adjusted: `Final = SemanticScore * (1 + weight * log10(Citations + 1))`.
+    2. **Boosting**:
+        * **Citation**: `Score *= (1 + weight * log10([Citations] + 1))`.
+        * **Title**: `Score *= weight * [Title x Query Fuzzy Match Rate]` if the query fuzzily matches the paper title by `title_match_boost_threshold`.
 6. **Response**: The top `k` results are returned.
 
 ## Limitations and Future Work
@@ -221,4 +230,5 @@ The project uses `ruff` for linting and formatting.
 uv run ruff check
 uv run ruff format
 ```
+
 ```
