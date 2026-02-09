@@ -29,7 +29,7 @@ class IndexEngine:
         dense_embeddings = vectorizer(metadata_inputs["dense"])
 
         await populator.upsert_metadata(
-            metadata=metadata, dense_vectors=dense_embeddings, sparse_texts=metadata_inputs["sparse"]["text"]
+            metadata=metadata, dense_vectors=dense_embeddings, sparse_texts=metadata_inputs["sparse"]
         )
 
         # do not catch errors - we will release dangling reservations in index() beginning

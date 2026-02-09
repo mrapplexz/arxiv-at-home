@@ -4,11 +4,13 @@ from arxiv_at_home.common.dense.vectorizer import VectorizerInputs
 
 
 class PaperMetadataDatasetSparseBatch(TypedDict):
-    text: list[str]
+    title: list[str]
+    abstract: list[str]
 
 
 class PaperMetadataDatasetSparseSample(TypedDict):
-    text: str
+    title: str
+    abstract: str
 
 
 class PaperMetadataDatasetMetadataBatch(TypedDict):

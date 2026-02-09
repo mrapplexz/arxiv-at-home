@@ -74,7 +74,8 @@ class PaperMetadataDataset(IterableDataset):
                     "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
                 },
                 "sparse": {
-                    "text": template,
+                    "title": meta.title,
+                    "abstract": meta.abstract
                 },
                 "json": meta.model_dump_json(),
             },
@@ -111,7 +112,8 @@ class PaperMetadataCollator:
                     ),
                 },
                 "sparse": {
-                    "text": [x["metadata"]["sparse"]["text"] for x in batch],
+                    "title": [x["metadata"]["sparse"]["title"] for x in batch],
+                    "abstract": [x["metadata"]["sparse"]["abstract"] for x in batch],
                 },
                 "json": [x["metadata"]["json"] for x in batch],
             },

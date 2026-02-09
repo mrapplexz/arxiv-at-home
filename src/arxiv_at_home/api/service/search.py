@@ -57,7 +57,12 @@ class SearchService:
                 ),
                 models.Prefetch(
                     query=models.Document(text=query_text, model=QDRANT_SPARSE_MODEL),
-                    using="metadata/sparse",
+                    using="abstract/sparse",
+                    limit=prefetch_limit,
+                ),
+                models.Prefetch(
+                    query=models.Document(text=query_text, model=QDRANT_SPARSE_MODEL),
+                    using="title/sparse",
                     limit=prefetch_limit,
                 ),
             ],

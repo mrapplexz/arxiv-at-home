@@ -7,6 +7,7 @@ from qdrant_client.http.models import Distance, Document, Modifier, SparseIndexP
 
 from arxiv_at_home.common.dto import PaperMetadata
 from arxiv_at_home.common.qdrant.config import QDRANT_SPARSE_MODEL
+from arxiv_at_home.index.component.batch_type import PaperMetadataDatasetSparseBatch
 
 
 def metadata_to_uuid(metadata: PaperMetadata) -> uuid.UUID:
@@ -22,14 +23,16 @@ class CollectionPopulator:
             await self._client.create_collection(
                 collection_name=source,
                 sparse_vectors_config={
-                    "metadata/sparse": SparseVectorParams(index=SparseIndexParams(), modifier=Modifier.IDF),
+                    "title/sparse": SparseVectorParams(index=SparseIndexParams(), modifier=Modifier.IDF),
+                    "abstract/sparse": SparseVectorParams(index=SparseIndexParams(), modifier=Modifier.IDF),
                 },
                 vectors_config={"metadata/dense": VectorParams(size=dense_dim, distance=Distance.COSINE)},
             )
 
-    def _vectors_from_meta(self, sparse_text: str, dense_vector: torch.Tensor) -> dict[str, Any]:
+    def _vectors_from_meta(self, sparse_title: str, sparse_abstract: str, dense_vector: torch.Tensor) -> dict[str, Any]:
         return {
-            "metadata/sparse": Document(text=sparse_text, model=QDRANT_SPARSE_MODEL),
+            "title/sparse": Document(text=sparse_title, model=QDRANT_SPARSE_MODEL),
+            "abstract/sparse": Document(text=sparse_abstract, model=QDRANT_SPARSE_MODEL),
             "metadata/dense": dense_vector.tolist(),
         }
 
@@ -44,7 +47,8 @@ class CollectionPopulator:
         }
 
     async def upsert_metadata(
-        self, metadata: list[PaperMetadata], sparse_texts: list[str], dense_vectors: list[torch.Tensor]
+            self, metadata: list[PaperMetadata], sparse_texts: PaperMetadataDatasetSparseBatch,
+            dense_vectors: list[torch.Tensor]
     ) -> None:
         if not metadata:
             return
@@ -56,8 +60,8 @@ class CollectionPopulator:
         self._client.upload_collection(
             collection_name=collection_name,
             vectors=[
-                self._vectors_from_meta(sparse_text, dense_vec)
-                for sparse_text, dense_vec in zip(sparse_texts, dense_vectors, strict=True)
+                self._vectors_from_meta(title, abstract, dense_vec)
+                for title, abstract, dense_vec in zip(sparse_texts["title"], sparse_texts["abstract"], dense_vectors, strict=True)
             ],
             payload=[self._payload_from_meta(meta) for meta in metadata],
             ids=[metadata_to_uuid(meta) for meta in metadata],  # deterministic uuidv5 ids
