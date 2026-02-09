@@ -73,10 +73,7 @@ class PaperMetadataDataset(IterableDataset):
                     "input_ids": torch.tensor(encoding.ids, dtype=torch.long),
                     "attention_mask": torch.tensor(encoding.attention_mask, dtype=torch.long),
                 },
-                "sparse": {
-                    "title": meta.title,
-                    "abstract": meta.abstract
-                },
+                "sparse": {"title": meta.title, "abstract": meta.abstract},
                 "json": meta.model_dump_json(),
             },
         }

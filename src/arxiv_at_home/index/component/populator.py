@@ -47,8 +47,10 @@ class CollectionPopulator:
         }
 
     async def upsert_metadata(
-            self, metadata: list[PaperMetadata], sparse_texts: PaperMetadataDatasetSparseBatch,
-            dense_vectors: list[torch.Tensor]
+        self,
+        metadata: list[PaperMetadata],
+        sparse_texts: PaperMetadataDatasetSparseBatch,
+        dense_vectors: list[torch.Tensor],
     ) -> None:
         if not metadata:
             return
@@ -61,7 +63,9 @@ class CollectionPopulator:
             collection_name=collection_name,
             vectors=[
                 self._vectors_from_meta(title, abstract, dense_vec)
-                for title, abstract, dense_vec in zip(sparse_texts["title"], sparse_texts["abstract"], dense_vectors, strict=True)
+                for title, abstract, dense_vec in zip(
+                    sparse_texts["title"], sparse_texts["abstract"], dense_vectors, strict=True
+                )
             ],
             payload=[self._payload_from_meta(meta) for meta in metadata],
             ids=[metadata_to_uuid(meta) for meta in metadata],  # deterministic uuidv5 ids

@@ -15,7 +15,9 @@
   },
   "search": {
     "prefetch_more_times": 3,
-    "citation_boost_weight": 0.15
+    "citation_boost_weight": 0.15,
+    "title_match_boost_weight": 3.0,
+    "title_match_boost_threshold": 0.85
   },
   "citation_provider": {
     "type": "semantic_scholar",

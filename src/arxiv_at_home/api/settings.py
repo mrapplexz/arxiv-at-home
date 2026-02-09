@@ -16,6 +16,8 @@ class ServingConfig(BaseModel):
 class SearchConfig(BaseModel):
     prefetch_more_times: int
     citation_boost_weight: float
+    title_match_boost_threshold: float
+    title_match_boost_weight: float
 
 
 class ApiSettings(BaseSettings):

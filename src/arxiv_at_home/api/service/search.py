@@ -1,8 +1,10 @@
 import math
+import re
 import time
 
 import torch
 from qdrant_client import models
+from rapidfuzz import fuzz
 
 from arxiv_at_home.api.dependencies import AppState
 from arxiv_at_home.api.dto import ScoredPaper, SearchRequest, SearchResponse, SearchStats
@@ -11,6 +13,8 @@ from arxiv_at_home.common.database.repository import PaperMetadataRepository
 from arxiv_at_home.common.dense.vectorizer import VectorizerInputs
 from arxiv_at_home.common.dto import PaperMetadata
 from arxiv_at_home.common.qdrant.config import QDRANT_SPARSE_MODEL
+
+_RE_NOT_WORD = re.compile(r"[^A-Za-z0-9]")
 
 
 class SearchService:
@@ -96,14 +100,27 @@ class SearchService:
         results = self._reranker(inputs)
         return results
 
-    def _calculate_total_score(self, semantic_score: float, citation_count: int | None) -> float:
+    def _title_match_ratio(self, meta: PaperMetadata, query: str) -> float:
+        query_norm = " ".join(_RE_NOT_WORD.sub(" ", query.lower()).split())
+        title_norm = " ".join(_RE_NOT_WORD.sub(" ", meta.title.lower()).split())
+        text_ratio = fuzz.ratio(query_norm, title_norm)
+        return text_ratio / 100.0
+
+    def _calculate_total_score(
+        self, semantic_score: float, citation_count: int | None, title_match_ratio: float
+    ) -> float:
         if citation_count is None:
             citation_count = 0
 
         citation_factor = math.log10(citation_count + 1)
         citation_boost = 1 + (self._config.citation_boost_weight * citation_factor)
 
-        return semantic_score * citation_boost
+        if title_match_ratio >= self._config.title_match_boost_threshold:
+            title_match_boost = self._config.title_match_boost_weight * title_match_ratio
+        else:
+            title_match_boost = 1.0
+
+        return semantic_score * citation_boost * title_match_boost
 
     def _apply_ranking_and_sort(
         self, query: str, documents: list[PaperMetadata], citation_map: dict[str, int | None], limit: int
@@ -116,11 +133,14 @@ class SearchService:
 
         scored_papers = []
         for paper, semantic_score in zip(documents, semantic_scores, strict=True):
-            # 2. Lookup Citations
+            # Lookup Citations
             citations = citation_map[paper.fully_qualified_name]
 
-            # 3. Calculate Final Score
-            final_score = self._calculate_total_score(semantic_score, citations)
+            # Calculate Title Match Ratio
+            title_match_ratio = self._title_match_ratio(paper, query)
+
+            # Calculate Final Score
+            final_score = self._calculate_total_score(semantic_score, citations, title_match_ratio)
 
             scored_papers.append(ScoredPaper(paper=paper, citations=citations, score=final_score))
 
